@@ -552,6 +552,16 @@ function Sidebar() {
     window.addEventListener('message', handleToggleMessage);
     return () => window.removeEventListener('message', handleToggleMessage);
   }, []);
+  // 监听核心层悬浮按钮的 toggleSidebar 消息
+  useEffect(() => {
+    const handleToggleMessage = (event) => {
+      if (event.origin === window.location.origin && event.data?.type === 'toggleSidebar') {
+        setIsOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('message', handleToggleMessage);
+    return () => window.removeEventListener('message', handleToggleMessage);
+  }, []);
   const [currentDeviceDpi, setCurrentDeviceDpi] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
   const [isTrackpadModeActive, setIsTrackpadModeActive] = useState(false);
@@ -1113,6 +1123,13 @@ function Sidebar() {
     apps: false,
     sharing: false,
   });
+  // 统计悬浮窗显示项控制
+  const [statsOverlayItems, setStatsOverlayItems] = useState(() => {
+    try {
+      const saved = localStorage.getItem('selkies-stats-overlay-items');
+      return saved ? JSON.parse(saved) : { fps: true, cpu: true, sysMem: false, gpu: false, gpuMem: false, bandwidth: true, latency: true, audio: false };
+    } catch { return { fps: true, cpu: true, sysMem: false, gpu: false, gpuMem: false, bandwidth: true, latency: true, audio: false }; }
+  });
   const [notifications, setNotifications] = useState([]);
   const notificationTimeouts = useRef({});
   const [isFilesModalOpen, setIsFilesModalOpen] = useState(false);
@@ -1318,6 +1335,13 @@ function Sidebar() {
     },
     [sectionsOpen, populateAudioDevices]
   );
+  const toggleStatsOverlayItem = useCallback((key) => {
+    setStatsOverlayItems(prev => {
+      const next = { ...prev, [key]: !(prev[key] ?? true) };
+      try { localStorage.setItem('selkies-stats-overlay-items', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
   const baseUrl = typeof window !== 'undefined' ? window.location.href.split('#')[0] : '';
   const sharingLinks = [
     {
@@ -2285,55 +2309,7 @@ function Sidebar() {
             )}
           </div>
         )}
-        
-        {(isMobile || hasDetectedTouch) && (renderableSettings.softButtons ?? true) && (
-          <>
-            <div className="sidebar-section-divider"></div>
-            <div className="sidebar-mobile-key-actions">
-              <button
-                className={`mobile-key-button ${heldKeys.Control ? "active" : ""}`}
-                onClick={() => handleHoldKeyClick('Control', 'ControlLeft')}
-                onMouseDown={(e) => e.preventDefault()}
-              >
-                CTL
-              </button>
-              <button
-                className={`mobile-key-button ${heldKeys.Alt ? "active" : ""}`}
-                onClick={() => handleHoldKeyClick('Alt', 'AltLeft')}
-                onMouseDown={(e) => e.preventDefault()}
-              >
-                ALT
-              </button>
-              <button
-                className={`mobile-key-button ${heldKeys.Meta ? "active" : ""}`}
-                onClick={() => handleHoldKeyClick('Meta', 'MetaLeft')}
-                onMouseDown={(e) => e.preventDefault()}
-              >
-                WIN
-              </button>
-              <button
-                className="mobile-key-button"
-                onClick={() => handleOnceKeyClick('Tab', 'Tab')}
-                onMouseDown={(e) => e.preventDefault()}
-              >
-                TAB
-              </button>
-              <button
-                className="mobile-key-button"
-                onClick={() => handleOnceKeyClick('Escape', 'Escape')}
-                onMouseDown={(e) => e.preventDefault()}
-              >
-                ESC
-              </button>
-              <button
-                className={`mobile-key-button icon-button ${isKeyboardButtonVisible ? "active" : ""}`}
-                onClick={toggleKeyboardButtonVisibility}
-              >
-                <KeyboardIcon />
-              </button>
-            </div>
-          </>
-        )}
+
 
         {(renderableSettings.videoSettings ?? true) && (
           <div className="sidebar-section">
@@ -2928,399 +2904,27 @@ function Sidebar() {
                 </div>
                 {sectionsOpen.stats && (
                   <div className="sidebar-section-content" id="stats-content">
-                    <div className="stats-gauges">
-                      <div
-                        className="gauge-container"
-                        onMouseEnter={(e) => handleMouseEnter(e, "cpu")}
-                        onMouseLeave={handleMouseLeave}
-                      >
-                        <svg
-                          width={gaugeSize}
-                          height={gaugeSize}
-                          viewBox={`0 0 ${gaugeSize} ${gaugeSize}`}
-                        >
-                          <circle
-                            stroke="var(--item-border)"
-                            fill="transparent"
-                            strokeWidth={gaugeStrokeWidth}
-                            r={gaugeRadius}
-                            cx={gaugeCenter}
-                            cy={gaugeCenter} />
-                          <circle
-                            stroke="var(--sidebar-header-color)"
-                            fill="transparent"
-                            strokeWidth={gaugeStrokeWidth}
-                            r={gaugeRadius}
-                            cx={gaugeCenter}
-                            cy={gaugeCenter}
-                            transform={`rotate(-90 ${gaugeCenter} ${gaugeCenter})`}
-                            style={{
-                              strokeDasharray: gaugeCircumference,
-                              strokeDashoffset: cpuOffset,
-                              transition: "stroke-dashoffset 0.3s ease-in-out",
-                              strokeLinecap: "round",
-                            }} />
-                          <text
-                            x={gaugeCenter}
-                            y={gaugeCenter}
-                            textAnchor="middle"
-                            dominantBaseline="central"
-                            fontSize={`${gaugeSize / 5}px`}
-                            fill="var(--sidebar-text)"
-                            fontWeight="bold"
-                          >
-                            {Math.round(
-                              Math.max(0, Math.min(100, cpuPercent || 0))
-                            )}%
-                          </text>
-                        </svg>
-                        <div className="gauge-label">
-                          {t("sections.stats.cpuLabel")}
-                        </div>
-                      </div>
-                      <div
-                        className="gauge-container"
-                        onMouseEnter={(e) => handleMouseEnter(e, "sysmem")}
-                        onMouseLeave={handleMouseLeave}
-                      >
-                        <svg
-                          width={gaugeSize}
-                          height={gaugeSize}
-                          viewBox={`0 0 ${gaugeSize} ${gaugeSize}`}
-                        >
-                          <circle
-                            stroke="var(--item-border)"
-                            fill="transparent"
-                            strokeWidth={gaugeStrokeWidth}
-                            r={gaugeRadius}
-                            cx={gaugeCenter}
-                            cy={gaugeCenter} />
-                          <circle
-                            stroke="var(--sidebar-header-color)"
-                            fill="transparent"
-                            strokeWidth={gaugeStrokeWidth}
-                            r={gaugeRadius}
-                            cx={gaugeCenter}
-                            cy={gaugeCenter}
-                            transform={`rotate(-90 ${gaugeCenter} ${gaugeCenter})`}
-                            style={{
-                              strokeDasharray: gaugeCircumference,
-                              strokeDashoffset: sysMemOffset,
-                              transition: "stroke-dashoffset 0.3s ease-in-out",
-                              strokeLinecap: "round",
-                            }} />
-                          <text
-                            x={gaugeCenter}
-                            y={gaugeCenter}
-                            textAnchor="middle"
-                            dominantBaseline="central"
-                            fontSize={`${gaugeSize / 5}px`}
-                            fill="var(--sidebar-text)"
-                            fontWeight="bold"
-                          >
-                            {Math.round(
-                              Math.max(0, Math.min(100, sysMemPercent || 0))
-                            )}
-                            %
-                          </text>
-                        </svg>
-                        <div className="gauge-label">
-                          {t("sections.stats.sysMemLabel")}
-                        </div>
-                      </div>
-                      {window.gpu_stats && (
-                        <>
-                          <div
-                            className="gauge-container"
-                            onMouseEnter={(e) => handleMouseEnter(e, "gpu")}
-                            onMouseLeave={handleMouseLeave}
-                          >
-                            <svg
-                              width={gaugeSize}
-                              height={gaugeSize}
-                              viewBox={`0 0 ${gaugeSize} ${gaugeSize}`}
-                            >
-                              <circle
-                                stroke="var(--item-border)"
-                                fill="transparent"
-                                strokeWidth={gaugeStrokeWidth}
-                                r={gaugeRadius}
-                                cx={gaugeCenter}
-                                cy={gaugeCenter} />
-                              <circle
-                                stroke="var(--sidebar-header-color)"
-                                fill="transparent"
-                                strokeWidth={gaugeStrokeWidth}
-                                r={gaugeRadius}
-                                cx={gaugeCenter}
-                                cy={gaugeCenter}
-                                transform={`rotate(-90 ${gaugeCenter} ${gaugeCenter})`}
-                                style={{
-                                  strokeDasharray: gaugeCircumference,
-                                  strokeDashoffset: gpuOffset,
-                                  transition: "stroke-dashoffset 0.3s ease-in-out",
-                                  strokeLinecap: "round",
-                                }} />
-                              <text
-                                x={gaugeCenter}
-                                y={gaugeCenter}
-                                textAnchor="middle"
-                                dominantBaseline="central"
-                                fontSize={`${gaugeSize / 5}px`}
-                                fill="var(--sidebar-text)"
-                                fontWeight="bold"
-                              >
-                                {Math.round(
-                                  Math.max(0, Math.min(100, gpuPercent || 0))
-                                )}%
-                              </text>
-                            </svg>
-                            <div className="gauge-label">
-                              {t("sections.stats.gpuLabel")}
-                            </div>
-                          </div>
-                          <div
-                            className="gauge-container"
-                            onMouseEnter={(e) => handleMouseEnter(e, "gpumem")}
-                            onMouseLeave={handleMouseLeave}
-                          >
-                            <svg
-                              width={gaugeSize}
-                              height={gaugeSize}
-                              viewBox={`0 0 ${gaugeSize} ${gaugeSize}`}
-                            >
-                              <circle
-                                stroke="var(--item-border)"
-                                fill="transparent"
-                                strokeWidth={gaugeStrokeWidth}
-                                r={gaugeRadius}
-                                cx={gaugeCenter}
-                                cy={gaugeCenter} />
-                              <circle
-                                stroke="var(--sidebar-header-color)"
-                                fill="transparent"
-                                strokeWidth={gaugeStrokeWidth}
-                                r={gaugeRadius}
-                                cx={gaugeCenter}
-                                cy={gaugeCenter}
-                                transform={`rotate(-90 ${gaugeCenter} ${gaugeCenter})`}
-                                style={{
-                                  strokeDasharray: gaugeCircumference,
-                                  strokeDashoffset: gpuMemOffset,
-                                  transition: "stroke-dashoffset 0.3s ease-in-out",
-                                  strokeLinecap: "round",
-                                }} />
-                              <text
-                                x={gaugeCenter}
-                                y={gaugeCenter}
-                                textAnchor="middle"
-                                dominantBaseline="central"
-                                fontSize={`${gaugeSize / 5}px`}
-                                fill="var(--sidebar-text)"
-                                fontWeight="bold"
-                              >
-                                {Math.round(
-                                  Math.max(0, Math.min(100, gpuMemPercent || 0))
-                                )}
-                                %
-                              </text>
-                            </svg>
-                            <div className="gauge-label">
-                              {t("sections.stats.gpuMemLabel")}
-                            </div>
-                          </div>
-                        </>
-                      )}
-                      <div
-                        className="gauge-container"
-                        onMouseEnter={(e) => handleMouseEnter(e, "fps")}
-                        onMouseLeave={handleMouseLeave}
-                      >
-                        <svg
-                          width={gaugeSize}
-                          height={gaugeSize}
-                          viewBox={`0 0 ${gaugeSize} ${gaugeSize}`}
-                        >
-                          <circle
-                            stroke="var(--item-border)"
-                            fill="transparent"
-                            strokeWidth={gaugeStrokeWidth}
-                            r={gaugeRadius}
-                            cx={gaugeCenter}
-                            cy={gaugeCenter} />
-                          <circle
-                            stroke="var(--sidebar-header-color)"
-                            fill="transparent"
-                            strokeWidth={gaugeStrokeWidth}
-                            r={gaugeRadius}
-                            cx={gaugeCenter}
-                            cy={gaugeCenter}
-                            transform={`rotate(-90 ${gaugeCenter} ${gaugeCenter})`}
-                            style={{
-                              strokeDasharray: gaugeCircumference,
-                              strokeDashoffset: fpsOffset,
-                              transition: "stroke-dashoffset 0.3s ease-in-out",
-                              strokeLinecap: "round",
-                            }} />
-                          <text
-                            x={gaugeCenter}
-                            y={gaugeCenter}
-                            textAnchor="middle"
-                            dominantBaseline="central"
-                            fontSize={`${gaugeSize / 5}px`}
-                            fill="var(--sidebar-text)"
-                            fontWeight="bold"
-                          >
-                            {clientFps}
-                          </text>
-                        </svg>
-                        <div className="gauge-label">
-                          {t("sections.stats.fpsLabel")}
-                        </div>
-                      </div>
-                      <div
-                        className="gauge-container"
-                        onMouseEnter={(e) => handleMouseEnter(e, "audio")}
-                        onMouseLeave={handleMouseLeave}
-                      >
-                        <svg
-                          width={gaugeSize}
-                          height={gaugeSize}
-                          viewBox={`0 0 ${gaugeSize} ${gaugeSize}`}
-                        >
-                          <circle
-                            stroke="var(--item-border)"
-                            fill="transparent"
-                            strokeWidth={gaugeStrokeWidth}
-                            r={gaugeRadius}
-                            cx={gaugeCenter}
-                            cy={gaugeCenter} />
-                          <circle
-                            stroke="var(--sidebar-header-color)"
-                            fill="transparent"
-                            strokeWidth={gaugeStrokeWidth}
-                            r={gaugeRadius}
-                            cx={gaugeCenter}
-                            cy={gaugeCenter}
-                            transform={`rotate(-90 ${gaugeCenter} ${gaugeCenter})`}
-                            style={{
-                              strokeDasharray: gaugeCircumference,
-                              strokeDashoffset: audioBufferOffset,
-                              transition: "stroke-dashoffset 0.3s ease-in-out",
-                              strokeLinecap: "round",
-                            }} />
-                          <text
-                            x={gaugeCenter}
-                            y={gaugeCenter}
-                            textAnchor="middle"
-                            dominantBaseline="central"
-                            fontSize={`${gaugeSize / 5}px`}
-                            fill="var(--sidebar-text)"
-                            fontWeight="bold"
-                          >
-                            {audioBuffer}
-                          </text>
-                        </svg>
-                        <div className="gauge-label">
-                          {t("sections.stats.audioLabel")}
-                        </div>
-                      </div>
-                      <div
-                        className="gauge-container"
-                        onMouseEnter={(e) => handleMouseEnter(e, "bandwidth")}
-                        onMouseLeave={handleMouseLeave}
-                      >
-                        <svg
-                          width={gaugeSize}
-                          height={gaugeSize}
-                          viewBox={`0 0 ${gaugeSize} ${gaugeSize}`}
-                        >
-                          <circle
-                            stroke="var(--item-border)"
-                            fill="transparent"
-                            strokeWidth={gaugeStrokeWidth}
-                            r={gaugeRadius}
-                            cx={gaugeCenter}
-                            cy={gaugeCenter} />
-                          <circle
-                            stroke="var(--sidebar-header-color)"
-                            fill="transparent"
-                            strokeWidth={gaugeStrokeWidth}
-                            r={gaugeRadius}
-                            cx={gaugeCenter}
-                            cy={gaugeCenter}
-                            transform={`rotate(-90 ${gaugeCenter} ${gaugeCenter})`}
-                            style={{
-                              strokeDasharray: gaugeCircumference,
-                              strokeDashoffset: bandwidthOffset,
-                              transition: "stroke-dashoffset 0.3s ease-in-out",
-                              strokeLinecap: "round",
-                            }} />
-                          <text
-                            x={gaugeCenter}
-                            y={gaugeCenter}
-                            textAnchor="middle"
-                            dominantBaseline="central"
-                            fontSize={`${gaugeSize / 5}px`}
-                            fill="var(--sidebar-text)"
-                            fontWeight="bold"
-                          >
-                            {Math.round(bandwidthMbps)}
-                          </text>
-                        </svg>
-                        <div className="gauge-label">
-                          {t("sections.stats.bandwidthLabel", "Bandwidth")}
-                        </div>
-                      </div>
-                      <div
-                        className="gauge-container"
-                        onMouseEnter={(e) => handleMouseEnter(e, "latency")}
-                        onMouseLeave={handleMouseLeave}
-                      >
-                        <svg
-                          width={gaugeSize}
-                          height={gaugeSize}
-                          viewBox={`0 0 ${gaugeSize} ${gaugeSize}`}
-                        >
-                          <circle
-                            stroke="var(--item-border)"
-                            fill="transparent"
-                            strokeWidth={gaugeStrokeWidth}
-                            r={gaugeRadius}
-                            cx={gaugeCenter}
-                            cy={gaugeCenter} />
-                          <circle
-                            stroke="var(--sidebar-header-color)"
-                            fill="transparent"
-                            strokeWidth={gaugeStrokeWidth}
-                            r={gaugeRadius}
-                            cx={gaugeCenter}
-                            cy={gaugeCenter}
-                            transform={`rotate(-90 ${gaugeCenter} ${gaugeCenter})`}
-                            style={{
-                              strokeDasharray: gaugeCircumference,
-                              strokeDashoffset: latencyOffset,
-                              transition: "stroke-dashoffset 0.3s ease-in-out",
-                              strokeLinecap: "round",
-                            }} />
-                          <text
-                            x={gaugeCenter}
-                            y={gaugeCenter}
-                            textAnchor="middle"
-                            dominantBaseline="central"
-                            fontSize={`${gaugeSize / 5}px`}
-                            fill="var(--sidebar-text)"
-                            fontWeight="bold"
-                          >
-                            {Math.round(latencyMs)}
-                          </text>
-                        </svg>
-                        <div className="gauge-label">
-                          {t("sections.stats.latencyLabel", "Latency")}
-                        </div>
-                      </div>
+                    <div className="stats-overlay-controls">
+                      {[
+                        { key: 'fps', label: 'FPS' },
+                        { key: 'cpu', label: 'CPU' },
+                        { key: 'sysMem', label: t("sections.stats.sysMemLabel", "Sys Mem") },
+                        { key: 'gpu', label: 'GPU' },
+                        { key: 'gpuMem', label: t("sections.stats.gpuMemLabel", "GPU Mem") },
+                        { key: 'bandwidth', label: t("sections.stats.bandwidthLabel", "Bandwidth") },
+                        { key: 'latency', label: t("sections.stats.latencyLabel", "Latency") },
+                        { key: 'audio', label: t("sections.stats.audioLabel", "Audio") },
+                      ].map(item => (
+                        <label key={item.key} className="stats-checkbox-item">
+                          <input
+                            type="checkbox"
+                            checked={statsOverlayItems[item.key] ?? true}
+                            onChange={() => toggleStatsOverlayItem(item.key)}
+                          />
+                          <span>{item.label}</span>
+                        </label>
+                      ))}
                     </div>
-                  </div>
                 )}
               </div>
             )}
@@ -3531,100 +3135,6 @@ function Sidebar() {
               </div>
             )}
 
-            {(renderableSettings.gamepads ?? true) && (
-              <div className="sidebar-section">
-                <div
-                  className="sidebar-section-header"
-                  onClick={() => toggleSection("gamepads")}
-                  role="button"
-                  aria-expanded={sectionsOpen.gamepads}
-                  aria-controls="gamepads-content"
-                  tabIndex="0"
-                  onKeyDown={(e) =>
-                    (e.key === "Enter" || e.key === " ") &&
-                    toggleSection("gamepads")
-                  }
-                >
-                  <h3>{t("sections.gamepads.title", "Gamepads")}</h3>
-                  <span className="section-toggle-icon" aria-hidden="true">
-                    {sectionsOpen.gamepads ? <CaretUpIcon /> : <CaretDownIcon />}
-                  </span>
-                </div>
-                {sectionsOpen.gamepads && (
-                  <div className="sidebar-section-content" id="gamepads-content">
-                    <div
-                      className="dev-setting-item"
-                      style={{ marginBottom: "10px" }}
-                    >
-                      <button
-                        className={`resolution-button toggle-button ${
-                          isTouchGamepadActive ? "active" : ""
-                        }`}
-                        onClick={handleToggleTouchGamepad}
-                        title={t(
-                          isTouchGamepadActive
-                            ? "sections.gamepads.touchDisableTitle"
-                            : "sections.gamepads.touchEnableTitle",
-                          isTouchGamepadActive
-                            ? "Disable Touch Gamepad"
-                            : "Enable Touch Gamepad"
-                        )}
-                      >
-                        <GamepadIcon />
-                        <span style={{ marginLeft: "8px" }}>
-                          {t(
-                            isTouchGamepadActive
-                              ? "sections.gamepads.touchActiveLabel"
-                              : "sections.gamepads.touchInactiveLabel",
-                            isTouchGamepadActive
-                              ? "Touch Gamepad: ON"
-                              : "Touch Gamepad: OFF"
-                          )}
-                        </span>
-                      </button>
-                    </div>
-
-                    {isMobile && isTouchGamepadActive ? (
-                      <p>
-                        {t(
-                          "sections.gamepads.physicalHiddenForTouch",
-                          "Physical gamepad display is hidden while touch gamepad is active."
-                        )}
-                      </p>
-                    ) : (
-                      <>
-                        {Object.keys(gamepadStates).length > 0 ? (
-                          Object.keys(gamepadStates)
-                            .sort((a, b) => parseInt(a, 10) - parseInt(b, 10))
-                            .map((gpIndexStr) => {
-                              const gpIndex = parseInt(gpIndexStr, 10);
-                              return (
-                                <GamepadVisualizer
-                                  key={gpIndex}
-                                  gamepadIndex={gpIndex}
-                                  gamepadState={gamepadStates[gpIndex]}
-                                />
-                              );
-                            })
-                        ) : (
-                          <p className="no-gamepads-message">
-                            {isMobile
-                              ? t(
-                                  "sections.gamepads.noActivityMobileOrEnableTouch",
-                                  "No physical gamepads. Enable touch gamepad or connect a controller."
-                                )
-                              : t(
-                                  "sections.gamepads.noActivity",
-                                  "No physical gamepad activity detected."
-                                )}
-                          </p>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
           </>
         )}
       </div>
@@ -3738,26 +3248,20 @@ function Sidebar() {
         <AppsModal isOpen={isAppsModalOpen} onClose={toggleAppsModal} t={t} />
       )}
 
-      {(isMobile || hasDetectedTouch) && isKeyboardButtonVisible && (renderableSettings.keyboardButton ?? true) && (
-        <button
-          className={`virtual-keyboard-button theme-${theme} allow-native-input`}
-          onClick={onKeyboardButtonClick}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          style={{
-            position: 'fixed',
-            right: `${keyboardButtonPosition.right}px`,
-            bottom: `${keyboardButtonPosition.bottom}px`,
-            touchAction: 'none',
-          }}
-          title={t("buttons.virtualKeyboardButtonTitle", "Pop Keyboard")}
-          aria-label={t("buttons.virtualKeyboardButtonTitle", "Pop Keyboard")}
-        >
-          <KeyboardIcon />
-        </button>
+      {/* 左下角统计悬浮窗 */}
+      {Object.values(statsOverlayItems).some(v => v) && (
+        <div className="stats-overlay-widget">
+          {statsOverlayItems.fps && <div className="stats-overlay-row"><span className="stats-overlay-val">{clientFps}</span><span className="stats-overlay-unit">fps</span></div>}
+          {statsOverlayItems.cpu && <div className="stats-overlay-row"><span className="stats-overlay-val">{Math.round(Math.max(0, Math.min(100, cpuPercent || 0)))}%</span><span className="stats-overlay-unit">cpu</span></div>}
+          {statsOverlayItems.sysMem && window.system_stats && <div className="stats-overlay-row"><span className="stats-overlay-val">{window.system_stats.mem_used ? `${(window.system_stats.mem_used / 1024).toFixed(1)}G` : 'N/A'}</span><span className="stats-overlay-unit">mem</span></div>}
+          {statsOverlayItems.gpu && window.gpu_stats && <div className="stats-overlay-row"><span className="stats-overlay-val">{Math.round(window.gpu_stats.gpu_percent || 0)}%</span><span className="stats-overlay-unit">gpu</span></div>}
+          {statsOverlayItems.gpuMem && window.gpu_stats && <div className="stats-overlay-row"><span className="stats-overlay-val">{window.gpu_stats.gmem_used ? `${(window.gpu_stats.gmem_used / 1024).toFixed(1)}G` : 'N/A'}</span><span className="stats-overlay-unit">vram</span></div>}
+          {statsOverlayItems.bandwidth && <div className="stats-overlay-row"><span className="stats-overlay-val">{bandwidthMbps.toFixed(1)}</span><span className="stats-overlay-unit">Mbps</span></div>}
+          {statsOverlayItems.latency && <div className="stats-overlay-row"><span className="stats-overlay-val">{Math.round(latencyMs)}</span><span className="stats-overlay-unit">ms</span></div>}
+          {statsOverlayItems.audio && <div className="stats-overlay-row"><span className="stats-overlay-val">{audioBuffer}</span><span className="stats-overlay-unit">buf</span></div>}
+        </div>
       )}
+
     </>
   );
 }
