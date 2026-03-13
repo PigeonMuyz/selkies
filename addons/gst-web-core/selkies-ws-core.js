@@ -578,6 +578,50 @@ body {
 .video-container.shared-user-mode #overlayInput {
   cursor: default !important;
 }
+/* ── 可拖拽悬浮菜单按钮 ── */
+#floating-menu-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(30, 30, 30, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #fff;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 999998;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+#floating-menu-btn:hover {
+  background: rgba(60, 60, 60, 0.85);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+  transform: scale(1.08);
+}
+#floating-menu-btn:active {
+  transform: scale(0.95);
+}
+#floating-menu-btn.dragging {
+  transition: none;
+  transform: scale(1.12);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+}
+#floating-menu-btn svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+  pointer-events: none;
+}
   `;
   document.head.appendChild(style);
 };
@@ -990,6 +1034,114 @@ const initializeUI = () => {
   appDiv.appendChild(videoContainer);
   updateStatusDisplay();
   playButtonElement.addEventListener('click', playStream);
+
+  // ── 创建可拖拽悬浮菜单按钮（替代键盘图标）──
+  const floatingBtn = document.createElement('div');
+  floatingBtn.id = 'floating-menu-btn';
+  floatingBtn.title = '菜单';
+  // 使用 SVG 菜单图标
+  floatingBtn.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>`;
+  document.body.appendChild(floatingBtn);
+
+  // 拖拽逻辑
+  let isDragging = false;
+  let wasDragged = false;
+  let dragStartX = 0, dragStartY = 0;
+  let btnStartX = 0, btnStartY = 0;
+  const DRAG_THRESHOLD = 8;
+
+  function getBtnPos() {
+    const rect = floatingBtn.getBoundingClientRect();
+    return { x: rect.left, y: rect.top };
+  }
+
+  function clampPosition(x, y) {
+    const w = floatingBtn.offsetWidth;
+    const h = floatingBtn.offsetHeight;
+    const maxX = window.innerWidth - w;
+    const maxY = window.innerHeight - h;
+    return {
+      x: Math.max(0, Math.min(x, maxX)),
+      y: Math.max(0, Math.min(y, maxY))
+    };
+  }
+
+  function applyPosition(x, y) {
+    floatingBtn.style.right = 'auto';
+    floatingBtn.style.bottom = 'auto';
+    floatingBtn.style.left = x + 'px';
+    floatingBtn.style.top = y + 'px';
+  }
+
+  function onDragStart(clientX, clientY) {
+    isDragging = true;
+    wasDragged = false;
+    const pos = getBtnPos();
+    btnStartX = pos.x;
+    btnStartY = pos.y;
+    dragStartX = clientX;
+    dragStartY = clientY;
+    // 立即切换到绝对定位
+    applyPosition(pos.x, pos.y);
+  }
+
+  function onDragMove(clientX, clientY) {
+    if (!isDragging) return;
+    const dx = clientX - dragStartX;
+    const dy = clientY - dragStartY;
+    if (!wasDragged && (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD)) {
+      wasDragged = true;
+      floatingBtn.classList.add('dragging');
+    }
+    if (wasDragged) {
+      const pos = clampPosition(btnStartX + dx, btnStartY + dy);
+      applyPosition(pos.x, pos.y);
+    }
+  }
+
+  function onDragEnd() {
+    isDragging = false;
+    floatingBtn.classList.remove('dragging');
+    if (!wasDragged) {
+      // 点击 → 通知 dashboard 切换侧边栏
+      window.postMessage({ type: 'toggleSidebar' }, window.location.origin);
+    }
+  }
+
+  // 触摸事件
+  floatingBtn.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const t = e.touches[0];
+    onDragStart(t.clientX, t.clientY);
+  }, { passive: false });
+  window.addEventListener('touchmove', (e) => {
+    if (!isDragging) return;
+    const t = e.touches[0];
+    onDragMove(t.clientX, t.clientY);
+  }, { passive: true });
+  window.addEventListener('touchend', () => {
+    if (isDragging) onDragEnd();
+  });
+
+  // 鼠标事件
+  floatingBtn.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    onDragStart(e.clientX, e.clientY);
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    onDragMove(e.clientX, e.clientY);
+  });
+  window.addEventListener('mouseup', () => {
+    if (isDragging) onDragEnd();
+  });
+
+  // 窗口 resize 时保持在可见区域内
+  window.addEventListener('resize', () => {
+    const pos = getBtnPos();
+    const clamped = clampPosition(pos.x, pos.y);
+    applyPosition(clamped.x, clamped.y);
+  });
 
   if (isSharedMode) {
       updateUIForSharedMode();
