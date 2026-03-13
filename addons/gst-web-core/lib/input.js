@@ -1594,6 +1594,8 @@ export class Input {
     }
 
     _handleMobileInput(event) {
+        // IME 组合期间跳过输入，避免中文拼音字母被直接插入
+        if (this.isComposing || event.isComposing) return;
         const text = event.target.value;
         if (!text) {
             return;
@@ -2513,6 +2515,10 @@ export class Input {
         this.listeners_context.push(addListener(window, 'keyup', this._handleKeyUp, this, true));
         this.listeners_context.push(addListener(window, 'blur', this.resetKeyboard, this));
         this.listeners_context.push(addListener(this.keyboardInputAssist, 'input', this._handleMobileInput, this));
+        // 为移动端输入框添加 composition 事件监听，确保 IME 组合状态正确传播
+        this.listeners_context.push(addListener(this.keyboardInputAssist, 'compositionstart', this._compositionStart, this));
+        this.listeners_context.push(addListener(this.keyboardInputAssist, 'compositionupdate', this._compositionUpdate, this));
+        this.listeners_context.push(addListener(this.keyboardInputAssist, 'compositionend', this._compositionEnd, this));
         this.listeners_context.push(addListener(document, 'mousedown', this._handleOutsideClick, this, true));
         this.listeners_context.push(addListener(document, 'touchstart', this._handleOutsideClick, this, true));
 
