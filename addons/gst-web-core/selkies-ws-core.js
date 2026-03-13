@@ -1042,6 +1042,52 @@ const initializeUI = () => {
   floatingBtn.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>`;
   document.body.appendChild(floatingBtn);
 
+  // ── 键盘切换按钮（仅触摸设备）──
+  if ('ontouchstart' in window) {
+    const kbdBtn = document.createElement('div');
+    kbdBtn.id = 'floating-kbd-btn';
+    kbdBtn.title = '键盘';
+    kbdBtn.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 5H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-9 3h2v2h-2V8zm0 3h2v2h-2v-2zM8 8h2v2H8V8zm0 3h2v2H8v-2zm-1 2H5v-2h2v2zm0-3H5V8h2v2zm9 7H8v-2h8v2zm0-4h-2v-2h2v2zm0-3h-2V8h2v2zm3 3h-2v-2h2v2zm0-3h-2V8h2v2z"/></svg>`;
+    kbdBtn.style.cssText = `
+      position: fixed; right: 20px; bottom: 80px; z-index: 2147483646;
+      width: 44px; height: 44px; border-radius: 50%;
+      background: rgba(30,30,30,0.85); border: 1px solid rgba(255,255,255,0.15);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; touch-action: none; user-select: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3); transition: background 0.2s, transform 0.15s;
+    `;
+    kbdBtn.querySelector('svg').style.cssText = 'width:22px;height:22px;fill:rgba(255,255,255,0.9);pointer-events:none;';
+    document.body.appendChild(kbdBtn);
+
+    let kbdVisible = false;
+    // 使用 touchstart 确保在用户手势中同步 focus（iPad Safari 要求）
+    kbdBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const kbdInput = document.getElementById('keyboard-input-assist');
+      if (!kbdInput) return;
+      if (kbdVisible && document.activeElement === kbdInput) {
+        kbdInput.blur();
+        kbdVisible = false;
+        kbdBtn.style.background = 'rgba(30,30,30,0.85)';
+      } else {
+        kbdInput.value = '';
+        kbdInput.focus();
+        kbdVisible = true;
+        kbdBtn.style.background = 'rgba(59,130,246,0.85)';
+      }
+    }, { passive: false });
+
+    // 键盘收起时重置按钮状态
+    const kbdInput = document.getElementById('keyboard-input-assist');
+    if (kbdInput) {
+      kbdInput.addEventListener('blur', () => {
+        kbdVisible = false;
+        kbdBtn.style.background = 'rgba(30,30,30,0.85)';
+      });
+    }
+  }
+
   // 拖拽逻辑
   let isDragging = false;
   let wasDragged = false;
@@ -1568,28 +1614,9 @@ const initializeInput = () => {
 
   const keyboardInputAssist = document.getElementById('keyboard-input-assist');
   if (keyboardInputAssist && inputInstance && !isSharedMode) {
-    keyboardInputAssist.addEventListener('input', (event) => {
-      const typedString = keyboardInputAssist.value;
-      if (typedString) {
-        inputInstance._typeString(typedString);
-        keyboardInputAssist.value = '';
-      }
-    });
-    keyboardInputAssist.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.keyCode === 13) {
-        const enterKeysym = 0xFF0D;
-        inputInstance._guac_press(enterKeysym);
-        setTimeout(() => inputInstance._guac_release(enterKeysym), 5);
-        event.preventDefault();
-        keyboardInputAssist.value = '';
-      } else if (event.key === 'Backspace' || event.keyCode === 8) {
-        const backspaceKeysym = 0xFF08;
-        inputInstance._guac_press(backspaceKeysym);
-        setTimeout(() => inputInstance._guac_release(backspaceKeysym), 5);
-        event.preventDefault();
-      }
-    });
-    console.log("initializeInput: Added 'input' and 'keydown' listeners to #keyboard-input-assist.");
+    // input/keydown 监听由 input.js 的 attach_context 统一管理（含 IME 组合检测），
+    // 此处不再重复添加，避免移动端输入冲突（双倍处理或竞争清空 value）。
+    console.log("initializeInput: keyboard-input-assist input handling delegated to input.js (IME-aware).");
   } else if (isSharedMode) {
     console.log("Shared mode: Keyboard input assist listeners NOT attached.");
   } else {

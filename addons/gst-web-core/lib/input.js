@@ -1166,6 +1166,7 @@ export class Input {
         this._isSynth = false;
         this.isComposing = false;
         this.compositionString = "";
+        this._justCompositionEnded = false; // 防止 compositionend 后 input 事件重复发送
         this.keyboardInputAssist = document.getElementById('keyboard-input-assist');
 
         this._activeTouches = new Map();
@@ -1577,6 +1578,10 @@ export class Input {
         this._updateCompositionText(event.data);
         this.isComposing = false;
         this.compositionString = "";
+        // iPad Safari 在 compositionend 后会紧跟一个 input 事件（insertFromComposition），
+        // 设置防抖标记避免文字被发送两次
+        this._justCompositionEnded = true;
+        setTimeout(() => { this._justCompositionEnded = false; }, 50);
     }
 
     _handleTextInput(event) {
@@ -1596,6 +1601,12 @@ export class Input {
     _handleMobileInput(event) {
         // IME 组合期间跳过输入，避免中文拼音字母被直接插入
         if (this.isComposing || event.isComposing) return;
+        // iPad Safari: compositionend 后紧跟的 insertFromComposition input 事件
+        // 文字已在 _compositionEnd 中发送，跳过避免重复
+        if (this._justCompositionEnded) {
+            event.target.value = '';
+            return;
+        }
         const text = event.target.value;
         if (!text) {
             return;
