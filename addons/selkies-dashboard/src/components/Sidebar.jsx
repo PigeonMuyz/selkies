@@ -2925,6 +2925,7 @@ function Sidebar() {
                         </label>
                       ))}
                     </div>
+                  </div>
                 )}
               </div>
             )}
