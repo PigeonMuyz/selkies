@@ -1060,8 +1060,13 @@ const initializeUI = () => {
     document.body.appendChild(kbdBtn);
 
     let kbdVisible = false;
-    // 使用 touchstart 确保在用户手势中同步 focus（iPad Safari 要求）
+    // iPad Safari: touchstart 中 focus 后 touchend 会自动 blur
+    // 所以在 touchstart 只阻止默认行为，在 touchend 中执行 focus
     kbdBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    }, { passive: false });
+    kbdBtn.addEventListener('touchend', (e) => {
       e.preventDefault();
       e.stopPropagation();
       const kbdInput = document.getElementById('keyboard-input-assist');
