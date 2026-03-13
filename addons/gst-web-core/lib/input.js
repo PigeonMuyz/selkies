@@ -1434,6 +1434,13 @@ export class Input {
         }
 
         if ((browser.isMac() || browser.isIOS()) && (code === 'CapsLock')) {
+            // iOS 设备上 CapsLock 用于切换中英文输入法，
+            // 不应转发到远程桌面，否则会导致远程 CapsLock 被切换
+            if (browser.isIOS()) {
+                _stopEvent(event);
+                return;
+            }
+            // macOS 桌面保持原有行为
             this._sendKeyEvent(KeyTable.XK_Caps_Lock, 'CapsLock', true);
             this._sendKeyEvent(KeyTable.XK_Caps_Lock, 'CapsLock', false);
             _stopEvent(event);
