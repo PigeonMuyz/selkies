@@ -542,6 +542,16 @@ function Sidebar() {
   useEffect(() => {
     window.postMessage({ type: 'sidebarVisibilityChanged', isOpen: isOpen }, window.location.origin);
   }, [isOpen]);
+  // 监听核心层悬浮按钮的 toggleSidebar 消息
+  useEffect(() => {
+    const handleToggleMessage = (event) => {
+      if (event.origin === window.location.origin && event.data?.type === 'toggleSidebar') {
+        setIsOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('message', handleToggleMessage);
+    return () => window.removeEventListener('message', handleToggleMessage);
+  }, []);
   const [currentDeviceDpi, setCurrentDeviceDpi] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
   const [isTrackpadModeActive, setIsTrackpadModeActive] = useState(false);
@@ -2095,15 +2105,6 @@ function Sidebar() {
 
   return (
     <>
-      {isToggleVisible && (
-        <div
-          className='toggle-handle'
-          onClick={toggleSidebar}
-          title={`${isOpen ? 'Close' : 'Open'} Dashboard`}
-        >
-          <div className="toggle-indicator"></div>
-        </div>
-      )}
       {availablePlacements && (() => {
         const arrowBaseStyle = {
           position: 'absolute',

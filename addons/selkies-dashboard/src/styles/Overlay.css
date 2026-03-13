@@ -89,25 +89,27 @@
 .sidebar {
   position: fixed;
   top: 0;
-  left: 0;
-  width: 280px;
+  right: -320px;
+  width: 300px;
   height: calc(var(--vh, 1vh) * 100);
-  background-color: var(--sidebar-bg);
-  transform: translateX(-100%);
-  transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out, background-color 0.3s ease, color 0.3s ease;
+  background: rgba(18, 18, 22, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
   z-index: 1010;
   padding: 20px;
   box-sizing: border-box;
   overflow-y: auto;
   color: var(--sidebar-text);
-  font-family: sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.5);
 }
 
 /* State when the sidebar is open. */
 .sidebar.is-open {
-  transform: translateX(0);
-  box-shadow: 2px 0 5px var(--sidebar-shadow);
+  right: 0;
 }
 
 /* --- Sidebar Header --- */
@@ -574,35 +576,7 @@
     transform: translate(-50%, -100%);
 }
 
-/* --- Sidebar Toggle Handle --- */
-/* Styles for the handle to open/close the sidebar. */
-.toggle-handle {
-  position: fixed;
-  top: 50%;
-  left: 0;
-  width: 15px;
-  height: 60px;
-  transform: translateY(-50%);
-  cursor: pointer;
-  z-index: 1020;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-/* Wider for iOS to escape gesture zone */
-@supports (-webkit-touch-callout: none) {
-  .toggle-handle {
-    width: 35px;
-  }
-}
-
-/* Visual indicator for the toggle handle. */
-.toggle-indicator {
-    width: 5px;
-    height: 40px;
-    background-color: var(--sidebar-header-color);
-    border-radius: 3px;
-}
+/* Toggle handle removed - using floating menu button from core layer */
 
 /* --- Global and Root Styles --- */
 /* Basic body styling to prevent horizontal scrollbar. */
